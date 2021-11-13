@@ -1,2 +1,3 @@
-# ng.glftpd.ga
-Mirror of gltpd-ng.com
+# Mirror of gltpd-ng.com
+
+Goto https://ng.glftpd.ga
