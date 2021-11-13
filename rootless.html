@@ -1,0 +1,98 @@
+<html><head>
+   <font face="Courier,Courier New,Monospace"/>
+      <h3>Rootless glftpd</h3>
+
+      Glftpd by default runs as root. It's launched as root, and it will never give up the root privilege. It uses a function named <i>seteuid(uid);</i> to escalate between privileges.<br/><br/>
+
+      This is an artifact from the original way that glftpd accounted for ownership and stats by using the UNIX ACLs to see who owns a file. This also means that in order to delete some other user's file, or to write to a root owned log file, you will <b>need</b> to escalate to root. Glftpd will do this temporarily but <i>seteuid(0); </i> and when done switch back to your regular uid defined in <i>/etc/passwd</i>.<br/><br/>
+
+      Even though you in <i>ps -ef</i> see glftpd run as a regular user, it must have privileges to escalate in order to function.<br/><br/>
+
+      What this means for you is that anyone hacking glftpd, nomatter if this is done while your UID is currently a user or root, can most likely inject shell code which can trigger <i>seteuid(0);</i>, and your system is compromised.<br/><br/>
+
+      <h3>Warning!</h3>
+      The binaries built with these capabilities are only a <b>technical preview</b>. The SQLite3 implementation is not perfect in regards to locking and transaction. The SQLite3 implementation is open sourced, and can be found <a href="http://www.glftpd-ng.com/owner_sqlite/">here</a>. Your contributions are welcomed!<br/><br/>
+      
+      If you are a DB junkie or have a good model for implementation for access, please contribute. If you are a script maintainer which rely on the filesystem ownership (<b>st_uid</b>/<b>st_gid</b>), please implement support for reading the <b>.ownerdb</b> files.<br/><br/>
+
+      <h3>Current implementation design</h3>
+      As the rootless glftpd cannot rely on the filesystem ACLs for ownership, we need to implement another separate structure. We used SQLite3 for this not having to reinvent the wheel. As SQLite3 is an atomic accounting database with slim traces and open license.<br/><br/>
+
+      We use one micro db per folder which glftpd manages. This is to reduce locking issues (one central DB would introduce longer waits for locks) and to make transparency to external tools as slim as possible. For instance, if you move a directory to your Archive disk, you would need to update a central DB in order to keep permissions. But with this approach the permissions follow the directory automaticly.<br/><br/>
+
+      Glftpd will maintain and create/delete the owner database files as a part of the regular use. It's integrated in the MKD / DELE / RMD commands, and doing RETR/STOR will update the database accordingly.<br/><br/>
+
+      The filename for the owner database is <b>.ownerdb</b>. The structure for the file is:<br/><br/>
+
+      <ul>
+         CREATE TABLE <b>files</b> (<br/>
+         &nbsp;&nbsp;&nbsp;<b>fn</b> TEXT PRIMARY KEY,&nbsp;&nbsp;<i># Filename</i><br/>
+         &nbsp;&nbsp;&nbsp;<b>un</b> TEXT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i># Username</i><br/>
+         &nbsp;&nbsp;&nbsp;<b>gn</b> TEXT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i># Groupname</i><br/>
+         &nbsp;&nbsp;&nbsp;<b>uid</b> INT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i># UserID (st_uid)</i><br/>
+         &nbsp;&nbsp;&nbsp;<b>gid</b> INT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i># GroupID (st_gid)</i><br/>
+         &nbsp;&nbsp;&nbsp;<b>dn</b> INT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i># Download count</i><br/>
+         );
+      </ul>
+
+      <h3>Activation in glftpd</h3>
+
+      Now that you have hopefully read and understood what this implies, here comes the options which enables you to use a non-rooted glftpd.<br/><br/>
+
+      <ul>
+         <h3>glftpd.conf</h3>
+
+         <b>ownerdb&nbsp;&nbsp;&nbsp;1</b><br/>
+         &nbsp;&nbsp;&nbsp;- Activates the code invoking creation / deletion / maintaining of the <b>.ownerdb</b> files. This can be enabled to passively create these files.<br/><br/>
+
+         <b>ownerdb_invoke&nbsp;&nbsp;&nbsp;1</b><br/>
+         &nbsp;&nbsp;&nbsp;- Invokes reading ownership in all aspects from <b>.ownerdb</b>. Also enables glftpd to drop permanent root privileges.<br/><br/>
+
+         <b>glftpd_user&nbsp;&nbsp;&nbsp;&lt;uid&gt;&nbsp;&nbsp;&nbsp;&lt;gid&gt;</b><br/>
+         &nbsp;&nbsp;&nbsp;- Numeric values to set the user which glftpd will drop to. To get the numeric values, run "id &lt;username&gt;"! Failure to specify will make glftpd run as 99:99.<br/><br/>
+         Other recommendations:<br/><br/>
+
+         <b>hidden_files&nbsp;&nbsp;&nbsp;/&nbsp;&nbsp;&nbsp;.ownerdb .ownerdb-shm .ownerdb-wal</b><br/>
+         &nbsp;&nbsp;&nbsp;- Append your hidden_files with all files which can be created by the DB process.<br/><br/>
+
+         <b>noretrieve&nbsp;&nbsp;&nbsp;.ownerdb .ownerdb-shm .ownerdb-wal</b><br/>
+         &nbsp;&nbsp;&nbsp;- Append your noretrieve with all files which can be created by the DB process.<br/><br/>
+
+         <h3>Permissions</h3>
+
+         As glftpd will run as this single UID user, this UID will need permission to read/write files under your glftpd chroot (for instance <b>/glftpd</b> or <b>/jail/glftpd</b>). Modify permissions accordingly. Recommended permissions read/write:<br/><br/>
+
+         <b>$GLROOT/ftp-data/*</b> (for logs, oneliners, messages, etc) <br/>
+         <b>$GLROOT/tmp</b> (for external scripts)<br/>
+         <b>$GLROOT/site</b> (obviously, how else to put files? :)<br/><br/>
+
+         If you have the possibility you can always <b>chown -R uid:gid $GLROOT</b>, this will however wipe your current file ACLs for existing structure. Beware.<br/><br/>
+
+         <h3>SHMs</h3>
+
+         Glftpd uses Shared Memory Segments to exchange information inbetween processes and to external processes (sitewho and gl_spy are two examples). Because of this, make sure to <b>killall glftpd</b> and to <b>ipcrm</b> all shared memory segments related to glftpd as displayed in <b>ipcs</b>.<br/><br/>
+         
+         If in doubt, refer to the glftpd.docs on this. It is the same procedure as increasing max_users.<br/><br/>
+
+         A correct SHM memory segment will look like:<br/><br/>
+
+         ------ Shared Memory Segments --------<br/>
+         key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;shmid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bytes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nattch<br/>
+         0x0000dead&nbsp;884736&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gl_user&nbsp;&nbsp;&nbsp;&nbsp;644&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;18080&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0<br/>
+         0x0000deae&nbsp;786433&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gl_user&nbsp;&nbsp;&nbsp;&nbsp;644&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2101252&nbsp;&nbsp;&nbsp;&nbsp;0<br/><br/>
+
+         ------ Semaphore Arrays --------<br/>
+         key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;semid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;perms&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nsems<br/>
+         0x0000dead&nbsp;655360&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gl_user&nbsp;&nbsp;&nbsp;&nbsp;644&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1<br/>
+         
+      </ul>
+
+      <h3>Connecting and logging</h3>
+
+      If all above is set up correctly, you should now be able to connect to your glftpd as any user, and it should run as your defined gl_user.<br/><br/>
+
+      Debug logging for the ownerdb transactions will be put in <b>/ftp-data/owner_update.log</b>. Take a peak in it now and then. Reference to this can be found in <a href="http://www.glftpd-ng.com/owner_sqlite/owner.c.txt">owner.c</a>.
+
+
+   </font>
+</body></html>

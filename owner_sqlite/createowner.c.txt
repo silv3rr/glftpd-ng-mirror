@@ -1,0 +1,242 @@
+/* 
+ * Hello.
+ *
+ * Build me with the command:
+ *
+ * gcc -Wall -O2 -s -o createowner -I. -I/usr/include -L/usr/lib/ -lsqlite3 createowner.c
+ *
+ * Use the latest SQLite3 libs!
+ *
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sqlite3.h>
+#include <string.h>
+#include <errno.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+
+#define OWNER_DBNAME ".ownerdb"
+#define OWNER_DBNAME_SHM ".ownerdb-shm"
+#define OWNER_DBNAME_WAL ".ownerdb-wal"
+
+/* Input parameters */
+int recursive;
+int verbose;
+
+/* Help */
+void print_usage(int status, char *v0);
+/* Scan a directory and populate .ownerdb */
+void create_ownerdbs(char *d);
+/* Open/create the .ownerdb files */
+int owner_open(sqlite3 **handle, const char *path, int flags);
+
+/* Grande de la main() */
+int main(int argc, char **argv)
+{
+   int parameters = 0;
+   char c;
+   struct stat st;
+
+   /* Check parameters input */
+   recursive = 0;
+   verbose = 0;
+
+   while ((c = getopt(argc, argv, "vrh")) != -1) 
+   {
+      switch(c)
+      {
+         case 'v':
+            verbose = 1;
+            parameters++;
+            break;
+         case 'r':
+            recursive = 1;
+            parameters++;
+            break;
+         case 'h':
+            print_usage(0, argv[0]);
+            break;
+         default:
+            print_usage(1, argv[0]);
+      }
+   }
+   
+   /* If we don't have an argument after the parameters, print usage */
+   if(argv[1 + parameters] == NULL || strlen(argv[1 + parameters]) < 1)
+      print_usage(1, argv[0]);
+
+   /* Strip trailing /'s */
+   while(strlen(argv[1 + parameters]) > 1 && argv[1 + parameters][strlen(argv[1 + parameters]) - 1] == '/')
+      argv[1 + parameters][strlen(argv[1 + parameters]) - 1] = '\0';
+
+   /* Check if the parameter exists */
+   if(stat(argv[1 + parameters], &st) != 0)
+   {
+      perror(argv[1 + parameters]);
+      return 1;
+   }
+
+   /* If it exists, check if it is a directory */
+   if(!S_ISDIR(st.st_mode))
+   {
+      fprintf(stderr, "%s: Not a directory\n", argv[1 + parameters]);
+      return 1;
+   }
+
+   /* If it is a directory, create the .ownerdb files */
+   create_ownerdbs(argv[1 + parameters]);
+
+   return 0;
+}
+
+
+/* 
+ * create_ownerdbs() will descend into a directory, and scan it for files and
+ * when it finds some, it'll copy the st_uid and st_gid to a .ownerdb for
+ * GLFTPd future use.
+ *
+ * create_ownerdbs() is recursive if -r flag is given to the program. It will
+ * call itself upon detection of directories inside directories.
+ */
+
+void create_ownerdbs(char *d)
+{
+   DIR *dp;
+   struct dirent *dir;
+   struct stat st;
+   char path[MAXPATHLEN];
+   char query[1024];
+   int rows;
+
+   sqlite3 *handle;
+   sqlite3_stmt *stmt;
+
+   /* If we cannot access the directory, return back */
+   if ((dp = opendir(d)) == NULL)
+      return;
+
+   if(verbose)
+      printf("processing directory: %s\n", d);
+
+   /* Create or open an already existing .ownerdb */
+   if(owner_open(&handle, d, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE) != SQLITE_OK)
+      return;
+
+   /* Create the 'files' table if it does not already exist */
+   strcpy(query, "PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS files (fn TEXT PRIMARY KEY, un TEXT, gn TEXT, uid INT, gid INT, dn INT);");
+   sqlite3_exec(handle, query, 0, 0, NULL);
+   
+   /* Get all entries in the directory */
+   while((dir = readdir(dp)) != NULL)
+   {
+      /* Full path = path + filename */
+      snprintf(path, MAXPATHLEN-1, "%s/%s", d, dir->d_name);
+
+      /* Get current file properties */
+      if(stat(path, &st) != 0)
+      {
+         perror(path);
+         continue;
+      }
+      
+      /* If it is a directory, and not '.' or '..', descend into it if recursive is set */
+      if(S_ISDIR(st.st_mode) && strcmp(dir->d_name, ".") && strcmp(dir->d_name, ".."))
+      {
+         if(recursive)
+         {
+            if(verbose)
+               printf(" - descending into dir: %s\n", dir->d_name);
+            create_ownerdbs(path);
+         }
+         continue;
+      }
+
+      /* Do not add the filenames below to .ownerdb */
+      if(!strcmp(dir->d_name, "..") || !strcmp(dir->d_name, ".ownerdb") || !strcmp(dir->d_name, ".ownerdb-shm") || !strcmp(dir->d_name, ".ownerdb-wal"))
+         continue;
+
+      /* Check if the current file already exists in db */
+      sqlite3_snprintf(1024, query, "SELECT COUNT(fn) FROM \"files\" WHERE fn = %Q;", dir->d_name);
+      sqlite3_prepare_v2(handle, query, -1, &stmt, 0);
+      sqlite3_step(stmt);
+      rows = sqlite3_column_int(stmt,0);
+      sqlite3_finalize(stmt);
+
+      /* If not, add it */
+      if(rows == 0)
+      {
+         if(verbose)
+            printf(" - adding file: %s\n", dir->d_name);
+         sqlite3_snprintf(1024, query, "INSERT INTO \"files\" (fn, un, gn, uid, gid, dn) VALUES (%Q, '%d', '%d', '%d', '%d', '%d');", dir->d_name, st.st_uid, st.st_gid, st.st_uid, st.st_gid, st.st_gid % 100);
+         sqlite3_exec(handle, query, 0, 0, NULL);
+      }
+   }
+
+   /* Close handlers for SQLite and directory */
+   sqlite3_close(handle);
+   closedir(dp);
+
+   /* Descend up one step */
+   return;
+}
+
+/*
+ * print_usage() prints program accepted parameters
+ */
+
+void print_usage(int status, char *v0)
+{
+   printf("Usage: %s [-v] [-r] <directory>\n\n", v0);
+   printf("   -v  verbose\n");
+   printf("   -r  recursive\n\n");
+   printf("The tool will create appropriate .ownerdb files for use with\n");
+   printf("rootless GLFTPd installations\n\n");
+   exit(status);
+}
+
+/*
+ * owner_open() is a wrapper for sqlite3_open_v2() which opens and/or
+ * initialisez the SQLite3 connection. It will also set busy_timeout
+ * and config options
+ */
+
+int owner_open(sqlite3 **handle, const char *path, int flags)
+{
+   int            retval;
+   char           dbname[MAXPATHLEN];
+
+   /* Serialized mode */
+   sqlite3_config(SQLITE_CONFIG_SERIALIZED);
+
+   /* Prepare DB name & open it */
+   snprintf(dbname, MAXPATHLEN, "%s/%s", path, OWNER_DBNAME);
+   retval = sqlite3_open_v2(dbname, handle, flags, NULL);
+
+   /* Set busy_timeout to 300ms */
+   sqlite3_busy_timeout(*handle, 300);
+
+   /* Print error on verbose */
+   if(retval != SQLITE_OK)
+   {
+      if(verbose)
+         printf("failed to open and/or create %s", dbname);
+      sqlite3_close(*handle);
+   }
+
+   /* chmod the new files, this is for GLFTPd access */
+   if(retval == SQLITE_OK)
+   {
+      chmod(dbname, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+      snprintf(dbname, MAXPATHLEN, "%s/%s", path, OWNER_DBNAME_SHM);
+      chmod(dbname, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+      snprintf(dbname, MAXPATHLEN, "%s/%s", path, OWNER_DBNAME_WAL);
+      chmod(dbname, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+   }
+
+   return retval;
+}

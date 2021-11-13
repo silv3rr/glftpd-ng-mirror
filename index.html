@@ -1,0 +1,126 @@
+<html><body>
+<font face="Courier,Courier New,Monospace"/>
+<h3>Downloads (BETA)</h3>
+<ul>
+(2011-08-11) 8fdd7c1eb0c56512f1aa47510ef4e484&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_fbsd32_v6.bin.gz">glftpd_fbsd32_v6.bin.gz</a>(Reported working by 2 users :)<br/>
+(2011-08-11) 02b93eb1496056f912e434f6ce3b2688&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_fbsd64_v6.bin.gz">glftpd_fbsd64_v6.bin.gz</a><br/>
+(2011-08-11) 7e37e9defed97f39b8dbc48bc42128ab&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx32_v6.bin.gz">glftpd_lnx32_v6.bin.gz</a><br/>
+(2011-08-11) 0329bb0b1ea425c878d9bdd9585c0274&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx32_v6_dynamic.bin.gz">glftpd_lnx32_v6_dynamic.bin.gz</a><br/>
+(2011-08-11) ce2f41881161a838045f7766742acf46&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx32_v6_dynamic_libc6_2.6.bin.gz">glftpd_lnx32_v6_dynamic_libc6_2.6.bin.gz</a><br/>
+(2011-08-11) 580de4b54216ef6061eeb70cff6d1083&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx32_v6_libc6_2.6.bin.gz">glftpd_lnx32_v6_libc6_2.6.bin.gz</a><br/>
+(2011-08-11) f24aec1b4bed576fbd9794c326ea03c7&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx64_v6.bin.gz">glftpd_lnx64_v6.bin.gz</a><br/>
+(2011-08-11) d6162a32ed1e571dc70c9b09b9fdc44b&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx64_v6_dynamic.bin.gz">glftpd_lnx64_v6_dynamic.bin.gz</a><br/>
+(2011-08-11) a2297a9237f13849941e8053419ca986&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx64_v6_dynamic_libc6_2.6.bin.gz">glftpd_lnx64_v6_dynamic_libc6_2.6.bin.gz</a><br/>
+(2011-08-11) 2a4453e706e163339709bc2bf90c82b4&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glftpd_lnx64_v6_libc6_2.6.bin.gz">glftpd_lnx64_v6_libc6_2.6.bin.gz</a><br/><br/>
+
+(2011-12-27) ae4e70bc9891eb0381bb8ad1cbf97a8b&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/t2/glftpd_lnx32_v6_t2.bin.gz">glftpd_lnx32_v6_t2.bin.gz</a><br/>
+(2011-12-27) 4984c8b0c7e1d18ea746aee43499c927&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/t2/glftpd_lnx64_v6_t2.bin.gz">glftpd_lnx64_v6_t2.bin.gz</a><br/><br/>
+
+<a href="http://glftpd-ng.com/rootless.html">More information on rootless glftpd here</a>!<br/><br/>
+
+
+<a href="http://glftpd-ng.com/old">Old releases</a><br/><br/>
+
+lnx32 = linux 32-bit build<br/>
+lnx64 = linux 64-bit build<br/>
+fbsd32 = freebsd 32-bit build<br/><br/>
+dynamic = dynamicly linked<br/>
+libc6_2.6 = built on Ubuntu 8.04 LTS, for systems with older libc6<br/><br/>
+t2 = Bleeding edge builds with bigger restructuring and/or features<br/><br/>
+</ul>
+<h3>Changelog</h3>
+
+<ul>
+2011-12-27: Reverse lookups working again. Fixed uncontrolled buffer (SIGABRTs reported).<br/>
+2011-11-20: Fixed a few signaling issues (sukalis). Updated t2 builds to include AES-NI enabled libssl. Replaced glftpd update_crc() with zlib's crc32(). Introduced <i>ul_buffer_size <b>&lt;value&gt;</b></i> glftpd.conf option to let you set read buffer size for read() and write() (by default set to BUFSIZ). Experiment values and get back to me. Suggested value; 262144<br/>
+2011-08-23: Published a <a href="http://glftpd-ng.com/owner_sqlite/createowner.c.txt">little tool</a> which can scan an existing directory structure, and output .ownerdb files. This is good for initializing old structures to run under a rootless glftpd instance.<br/>
+2011-08-21: Optimized list file routines (linked list buffering whole dir). Fixed RMD error where new -wal and -shm files were not deleted properly.<br/>
+2011-08-20: Rootless useradd fix. Updated <a href="http://www.glftpd-ng.com/owner_sqlite/">owner_sqlite</a> files to reflect current changes. Implemented functions to read and parse whole dirs with linked lists (and corrosponding free() functions). Removed gl_log() references, as you don't have it :)<br/>
+2011-08-15: Rootless groupadd fix.<br/>
+2011-08-14: New T2 builds. Redefined signaling and implemented features for rootless glftpd. Msg you know who if you want to activate it. SQLite3 code used in glftpd can be found <a href="http://www.glftpd-ng.com/owner_sqlite/">here</a>. Feedback welcomed. Please make options for your 3rd party script to use the SQLite3 permissions!<br/>
+2011-08-14: No new outstanding error reports on T2 builds, migrating to main track. Known issues; Signal 6 and speed_limit.<br/>
+2011-08-11: Fixed another "delay_signaling was called with euid=0".<br/>
+2011-08-04: Fixed (null) user on NUKE/UNNUKE. Adressed loading username.lock files.<br/>
+2011-08-03: Adressed NUKE hanging for some users.<br/>
+2011-08-02: Revisited the NUKE logging, please feedback result. Normalized logging. Normalized SHM structs and dirlogs with 32-bit binaries.<br/>
+2011-07-27: Fixed a "delay_signaling was called with euid=0" on RETR. Thanks sukalis for debug input!<br/>
+2011-07-25: Caught a few strcpy bugs which could cause malicious directory names and completions. Normalized memory space between 32 and 64-bit. t2 build only.<br/>
+2011-07-12: Think we nailed the NUKE flags. Try the t2 and give feedback.<br/>
+2011-07-11: Adressed problems with flags and site nuke logging, if you had problems try the t2 and give feedback<br/>
+2011-07-07: Fixed memory leak on directory list (thanks zokum and PCFiL)<br/>
+2011-06-27: First public release<br/><br/>
+</ul>
+
+<h3>64-bit compatibility</h3>
+<ul>
+(2011-08-02) 247c158f68910b1480512d7a2125bc70&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glconf.h.gz">glconf.h.gz</a><br/>
+f20c0cbc4fc72870a9c178d87bbee173&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glext_lnx32_10.04.tgz">glext_lnx32_10.04.tgz</a><br/>
+4cef3dda2017abaa45dd7eb98bb270ca&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glext_lnx32_8.04.tgz">glext_lnx32_8.04.tgz</a><br/>
+(2011-08-02) 09a0a2bcf7b0f7cc822b113afdf655eb&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glext_lnx64_10.04.tgz">glext_lnx64_10.04.tgz</a><br/>
+(2011-08-02) 12324eba38ab04c81b2fb587cebd03c1&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/glext_lnx64_8.04.tgz">glext_lnx64_8.04.tgz</a><br/>
+ff2dcddd77f1507e7df00e6868312b0c&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/sitewho.tar.gz">sitewho.tar.gz</a><br/><br/>
+Put <b> glconf.h</b> in your ${glftpd-LNX_2.01}/bin/sources, run compile.sh to build with correct glftpd x86_64 headers.<br/><br/>
+If you want native working 64-bit binaries download and extract <b>glext_*.tgz</b> (pick a suiting one) to your $GLDIR/bin folder. To build a working sitewho binary, use <b>sitewho.tar.gz</b> sources.<br/><br/>
+</ul>
+<h3>AppArmor Profile</h3>
+<ul>
+(2011-07-27) 0bd7767b2cfcc9977b70826ac50914f8&nbsp;&nbsp;<a href="http://glftpd-ng.com/down/jail.glftpd.bin.glftpd.gz">jail.glftpd.bin.glftpd.gz</a><br/>
+</ul>
+In order to make glftpd as safe and secure as possible to use, dispite it's design, you can use an <a href="http://www.novell.com/linux/security/apparmor/">AppArmor</a> profile to enhance it's security. AppArmor is standard and available in <a href="http://www.ubuntu.com/">Ubuntu Server</a> and <a href="http://www.opensuse.org/">openSuSE</a>.<br/><br/>
+To install the profile, download jail.glftpd.bin.glftpd.txt and put in your /etc/apparmor.d/ directory. Modify the <i>@{GLROOT}</i> and <i>@{GLCONF}</i> variables accordingly. And if you have other custom site commands which glftpd needs executing, add them in <i>@{GLBINS}</i>.<br/><br/>
+Activation of profile is achieved by running <i>aa-enforce /etc/apparmor.d/jail.glftpd.bin.glftpd</i>, then reloading the profiles to include it. To see status, run <i>aa-status </i>:<br><br/>
+<ul>
+root@box:~# aa-status<br/>
+apparmor module is loaded.<br/>
+1 profiles are loaded.<br/>
+1 profiles are in enforce mode.<br/>
+&nbsp;&nbsp;&nbsp;/jail/glftpd/bin/glftpd<br/>
+2 processes have profiles defined.<br/>
+2 processes are in enforce mode :<br/>
+&nbsp;&nbsp;&nbsp;/jail/glftpd/bin/glftpd (5016) <br/>
+&nbsp;&nbsp;&nbsp;/jail/glftpd/bin/glftpd (5074) <br/>
+</ul>
+
+This profile has only been tested on stock installations. If you get permission problems and/or runtime problems, check your system logs to track down the problem. This is PoC only.<br/><br/>
+
+<h3>Implemented (extended) standard</h3>
+
+Original standard: <a href="http://www.faqs.org/rfcs/rfc2428.html">RFC 2428</a><br/><br/>
+RFC 2428 implements two commands replacing <b>PASV</b> and <b>PORT</b>. They are <b>EPSV</b> (Extended Passive mode) and <b>EPRT</b> (Extended Port mode).<br/><br/>
+The original implementation looks like:<br/>
+<ul>
+   <b>EPSV</b>[&lt;space&gt; &lt;<b>net-prt</b>&gt;]<br/>
+   Returns: 229 <i>&lt;text indicating server is entering extended passive mode&gt; (&lt;d&gt;&lt;d&gt;&lt;d&gt;</i>&lt;<b>tcp-port</b>&gt;<i>&lt;d&gt;)</i><br/><br/>
+   <b>EPRT</b><i>&lt;space&gt;&lt;d&gt;</i>&lt;<b>net-prt</b>&gt;<i>&lt;d&gt;</i>&lt;<b>net-addr</b>&gt;<i>&lt;d&gt;</i>&lt;<b>tcp-port</b>&gt;<i>&lt;d&gt;</i><br>
+   Returns: 200 <i>&lt;text indicating correct input&gt;</i>
+</ul>
+net-prt = Network Protocol, 1 = IPv4, 2 = IPv6<br/>
+net-addr = Network Address<br/>
+tcp-port = TCP port<br/>
+d = delimiter (preferred |)<br/><br/>
+
+As PASV would return an IP address and TCP port to make FXP working smoothly, EPSV does not. In fact, the standard prohibits populating the empty fields with protocol and IP. This is what we have extended.<br/><br/>
+
+glftpd with IPv6-protocol will implement RFC 2428 as following:
+
+<ul>
+   <b>EPSV</b>[&lt;space&gt; &lt;<b>net-prt</b>&gt;]<br/>
+   Returns: 229 <i>&lt;text indicating server is entering extended passive mode&gt;</i> (<i>&lt;d&gt;</i><font color="red"><b>&lt;net-prt&gt;</b></font><i>&lt;d&gt;</i><font color="red"><b>&lt;net-addr&gt;</b></font><i>&lt;d&gt;</i>&lt;<b>tcp-port</b>&gt;<i>&lt;d&gt;)</i><br/><br/>
+   <b>EPRT</b><i>&lt;space&gt;&lt;d&gt;</i>&lt;<b>net-prt</b>&gt;<i>&lt;d&gt;</i>&lt;<b>net-addr</b>&gt;<i>&lt;d&gt;</i>&lt;<b>tcp-port</b>&gt;<i>&lt;d&gt;</i><br>
+   Returns: 200 <i>&lt;text indicating correct input&gt;</i>
+</ul>
+<h3>Which gives</h3>
+This allows for a full flexibility FXP which provides:<br/><br/>
+&nbsp; * Using FTP bouncers<br/>
+&nbsp; * FXP:ing over IPv6 even though connected via IPv4<br/>
+&nbsp; * Utilizing IPv6 between v6-enabled sites without requirement of client IPv6, and vice versa with legacy IPv4<br/>
+<h3>glftpd.conf</h3>
+To play with IPv6 on your glftpd installation, add the following to glftpd.conf:<br/><br/>
+&nbsp;&nbsp;&nbsp;<b>ipv6 1</b><br/><br/>
+By doing this it will on login look what IPv6 addresses you have available. It will select to use the first public it can find. By public we discount link local (<b>fe80::</b>) and loopback (<b>::1</b>).<br/><br/>
+In case you want to bind to a specific address and/or perform round robin between multiple, simply add the following to glftpd.conf:<br/><br/>
+&nbsp;&nbsp;&nbsp;<b>active_addr6 &lt;<i>v6 address</i>&gt;</b><br/>
+&nbsp;&nbsp;&nbsp;<b>pasv_addr6 &lt;<i>v6 address</i>&gt;</b><br/><br/>
+That should be it for now... :)
+</font>
+</body></html>
