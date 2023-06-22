@@ -3,4 +3,4 @@
 Goto:
 
 - https://ng.glftpd.nl.eu.org
-- https://ng.glftpd.ga
+
